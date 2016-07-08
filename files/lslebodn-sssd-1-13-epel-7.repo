@@ -1,0 +1,8 @@
+[lslebodn-sssd-1-13]
+name=Copr repo for sssd-1-13 owned by lslebodn
+baseurl=https://copr-be.cloud.fedoraproject.org/results/lslebodn/sssd-1-13/epel-7-$basearch/
+skip_if_unavailable=True
+gpgcheck=1
+gpgkey=https://copr-be.cloud.fedoraproject.org/results/lslebodn/sssd-1-13/pubkey.gpg
+enabled=1
+enabled_metadata=1

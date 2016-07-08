@@ -1,2 +1,13 @@
 ---
-# handlers file for ansible-role-tripleo-ipa/
+
+- name: restart network
+  sudo: yes
+  service: name=network state=restarted
+
+- name: createrepo file
+  command: createrepo /iparepo
+
+- name: restart firewalld
+  service: name=firewalld
+           enabled=yes
+           state=restarted

@@ -1,2 +1,9 @@
 ---
-# defaults file for ansible-role-tripleo-ipa/
+
+dotfiles_dir: ~/dotfiles  # was in defaults/main.yml
+
+ipa_admin_password: FreeIPA4All
+ipa_dm_password: FreeIPA4All
+ipa_admin_user_password: FreeIPA4All
+
+ipa_realm: FEDTEST.ORG

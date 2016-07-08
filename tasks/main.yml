@@ -1,2 +1,187 @@
 ---
-# tasks file for ansible-role-tripleo-ipa/
+
+# from old roles/identity/common/tasks/main.yaml
+- name: initialize nameservers
+  lineinfile: dest=/etc/resolv.conf
+              line='nameserver {{ ipa_forwarder }}'
+              insertafter='^search'
+
+- name: disable selinux
+  tags:
+    - common
+  selinux: state=disabled
+
+- name: Install repos
+  tags:
+    - common
+  copy: src="{{ item }}"
+        dest=/etc/yum.repos.d/{{ item }}
+  with_items:
+    - rhel-server.repo
+    - jamielennox-rippowam-updates-epel-7.repo
+    - jdennis-keycloak-httpd-client-install.repo
+  when: ansible_distribution == "RedHat" and ansible_distribution_major_version == "7"
+
+- name: upgrade all packages
+  tags:
+    - common
+  yum: name=* state=latest
+
+- name: Install packages
+  tags:
+    - common
+  yum: name=rng-tools,NetworkManager
+
+- name: patch rngd
+  tags:
+    - common
+  copy: src=rngd.service dest=/etc/systemd/system/rngd.service
+  register: rngd
+
+- name: reload systemd units
+  tags:
+    - common
+  command: systemctl daemon-reload
+  when: rngd.changed
+
+- name: Start the rngd service
+  tags:
+    - common
+  service: name=rngd enabled=yes state=started
+
+- name: Start Network manager
+  tags:
+    - common
+  service: name=NetworkManager state=started enabled=yes
+  when: ipa_nova_join is undefined
+
+- name: Add second ethernet interface
+  tags:
+    - common
+  command: nmcli connection  add type ethernet ifname eth1  con-name ethernet-eth1
+  when: (ipa_nova_join is undefined) and (not ansible_eth1.ipv4 is defined)
+
+- name: Set up authorized_keys for the deploy user
+  tags:
+    - common
+  authorized_key: user="{{ ansible_user_id }}"
+                  key="{{ item }}"
+  with_file:
+    - public_keys/work.pub
+
+- name: tty-less sudo
+  tags:
+    - common
+  sudo: yes
+  lineinfile: dest=/etc/sudoers
+              state=absent
+              regexp='^Defaults(\s+)requiretty(\s*)$'
+              validate='visudo -cf %s'
+
+- name: Set server hostname
+  tags:
+    - common
+  sudo: yes
+  hostname: name={{ hostname }}
+
+# from old roles/identity/ipaserver/tasks/main.yaml
+- name: install ipa packages
+  tags:
+    - ipaserver
+  yum: name={{ item }} state=present
+  with_items:
+    - bind-dyndb-ldap
+    - ipa-server-dns
+    - ipa-server
+    - firewalld
+
+- name: ipa extra packages
+  tags:
+    - ipaserver
+  yum: name={{ item }} state=present
+  with_items:
+    - bind-pkcs11
+    - bind-pkcs11-utils
+    - ipa-server-dns
+  when: ansible_distribution == "RedHat" or ansible_distribution == "CentOS"
+
+- name: Get default DNS
+  resolver:
+  register: dns_forwarder
+  changed_when: false
+
+- name: install ipa
+  tags:
+    - ipaserver
+  command: >
+    ipa-server-install -U
+    --realm {{ ipa_realm }}
+    --domain {{ ipa_realm | lower }}
+    --ds-password {{ ipa_dm_password }}
+    --admin-password {{ ipa_admin_password }}
+    --setup-dns
+    --ip-address {{ ansible_default_ipv4.address }}
+    --forwarder {{ dns_forwarder.nameservers[0] }}
+  args:
+    creates: /etc/ipa/ca.crt
+
+- name: install ipa kra
+  tags:
+    - ipaserver
+  command: >
+    ipa-kra-install -U
+    -p {{ ipa_dm_password }}
+  args:
+    creates: /etc/httpd/alias/kra-agent.pem
+  when: ansible_distribution == "RedHat"
+
+- name: enable firewalld
+  tags:
+    - ipaserver
+  service: enabled=yes
+           state=started
+           name=firewalld
+
+- name: Open Firewall for services
+  tags:
+    - ipaserver
+  firewalld: service={{ item }}
+             permanent=true
+             state=enabled
+             immediate=yes
+  with_items:
+    - http
+    - https
+    - ldap
+    - ldaps
+    - dns
+    - kerberos
+    - kpasswd
+    - ntp
+
+- name: Open Firewall for ports
+  tags:
+    - ipaserver
+  firewalld: port={{ item }}
+             permanent=true
+             state=enabled
+             immediate=yes
+  with_items:
+    - 9180/tcp
+    - 9443-9446/tcp
+    - 9701/tcp
+    - 7389/tcp
+    - 8443/tcp
+
+- name: Fetch krb5config
+  fetch: src=/etc/krb5.conf
+         dest={{ inventory_dir }}/krb5.conf
+         flat=yes
+
+- name: Fetch cacert
+  fetch: src=/etc/ipa/ca.crt
+         dest={{ inventory_dir }}/ca.crt
+         flat=yes
+
+- name: Fetch kra agent pem file
+  fetch: src=/etc/httpd/alias/kra-agent.pem dest={{ inventory_dir }}/kra-agent.pem flat=yes

@@ -1,0 +1,8 @@
+[jdennis-keycloak-httpd-client-install]
+name=Copr repo for keycloak-httpd-client-install owned by jdennis
+baseurl=https://copr-be.cloud.fedoraproject.org/results/jdennis/keycloak-httpd-client-install/epel-7-$basearch/
+skip_if_unavailable=True
+gpgcheck=1
+gpgkey=https://copr-be.cloud.fedoraproject.org/results/jdennis/keycloak-httpd-client-install/pubkey.gpg
+enabled=1
+enabled_metadata=1

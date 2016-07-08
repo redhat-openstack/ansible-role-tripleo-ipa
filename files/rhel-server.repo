@@ -1,0 +1,11 @@
+[rhel-server]
+name=RHEL 7.2 Server
+baseurl=http://download.devel.redhat.com/released/RHEL-7/7.2/Server/$basearch/os/
+gpgcheck=0
+enabled=1
+
+[rhel-server-optional]
+name=RHEL 7.2 Server Optional
+baseurl=http://download.devel.redhat.com/released/RHEL-7/7.2/Server-optional/$basearch/os/
+gpgcheck=0
+enabled=0

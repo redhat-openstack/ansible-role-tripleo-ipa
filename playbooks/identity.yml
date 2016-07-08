@@ -1,0 +1,8 @@
+---
+
+- hosts: identity
+  sudo: yes
+  tags:
+    - identity
+  roles:
+    - { role: tripleo-ipa, hostname: "{{ ansible_fqdn }}", ipa_admin_password: "{{ ipa_admin_user_password }}" }
